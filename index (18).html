@@ -1,0 +1,467 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alwynn Thoh - Portfolio</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+        body {
+            background: #1a252f;
+            color: #e2e8f0;
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+        }
+        .background {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #1a252f, #2d3748);
+        }
+        .logo {
+            width: 100px;
+            height: 100px;
+            background: url('https://via.placeholder.com/100?text=⚡') no-repeat center;
+            background-size: contain;
+            animation: pulse 2s infinite;
+            filter: drop-shadow(0 0 8px #d4af37);
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #d4af37;
+            border-radius: 10px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-3px);
+        }
+        .nav-link {
+            position: relative;
+            padding-bottom: 4px;
+            color: #e2e8f0;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background: #d4af37;
+            transition: width 0.3s;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .filter-btn {
+            border: 1px solid #d4af37;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .filter-btn:hover {
+            background: #d4af37;
+            color: #1a252f;
+        }
+        .project-card {
+            background: #2d3748;
+            padding: 1.5rem;
+            border-radius: 8px;
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .project-card:hover {
+            transform: translateY(-5px);
+        }
+        .skill-card {
+            position: relative;
+            background: #d4af37;
+            color: #1a252f;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        .skill-card:hover {
+            transform: scale(1.05);
+        }
+        .tooltip {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #d4af37;
+            color: #1a252f;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+        }
+        .skill-card:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+        .progress-bar {
+            height: 6px;
+            background: #d4af37;
+            border-radius: 3px;
+        }
+        .carousel {
+            overflow: hidden;
+            position: relative;
+        }
+        .carousel-inner {
+            display: flex;
+            transition: transform 0.5s ease;
+        }
+        .carousel-item {
+            min-width: 100%;
+            text-align: center;
+            padding: 1rem;
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 2rem;
+            border-left: 2px solid #d4af37;
+            margin-bottom: 1.5rem;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            background: #d4af37;
+            border-radius: 50%;
+        }
+        .profile-pic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid #d4af37;
+            object-fit: cover;
+        }
+        .resume-btn, .contact-btn {
+            background: #d4af37;
+            color: #1a252f;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .resume-btn:hover, .contact-btn:hover {
+            background: #b8972e;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #2d3748;
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .project-lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .lightbox-content {
+            background: #2d3748;
+            padding: 2rem;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    <header class="flex justify-between items-center p-4">
+        <div class="logo"></div>
+        <nav>
+            <ul class="flex space-x-6 text-base">
+                <li><a href="#home" class="nav-link">Home</a></li>
+                <li><a href="#about" class="nav-link">About</a></li>
+                <li><a href="#skills" class="nav-link">Skills</a></li>
+                <li><a href="#certifications" class="nav-link">Certifications</a></li>
+                <li><a href="#projects" class="nav-link">Projects</a></li>
+                <li><a href="#timeline" class="nav-link">Timeline</a></li>
+                <li><a href="#achievements" class="nav-link">Achievements</a></li>
+                <li><a href="#contact" class="nav-link">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="home" class="section mx-4 text-center">
+        <h1 class="text-4xl font-bold mb-4">Alwynn Thoh</h1>
+        <h2 class="text-xl mb-4">Economist, Mathematician, and Founder of APC TECH LTD</h2>
+        <p class="text-base">Innovating tech solutions in Nairobi, Kenya.</p>
+        <button class="contact-btn mt-4 text-base" onclick="openModal()">Connect Now</button>
+    </section>
+
+    <section id="about" class="section mx-4">
+        <h2 class="text-3xl font-bold mb-4">About Me</h2>
+        <div class="flex flex-col md:flex-row items-center">
+            <img src="https://via.placeholder.com/150?text=Alwynn" alt="Alwynn Thoh Profile Picture" class="profile-pic mb-4 md:mr-4">
+            <div>
+                <p class="text-base">I'm Alwynn Thoh, an economist and mathematician with a BA in Mathematics and Economics from Chuka University. As the founder of <span class="font-bold">APC TECH LTD</span>, I lead innovative projects in software development, networking, and data analytics. My experience as Treasurer at Young Life Association, strategic skills in chess, and B1-level German proficiency enhance my global approach. I’m also passionate about basketball and environmental sustainability.</p>
+                <a href="https://your-link/THOH_CV.pdf" download="Alwynn_Thoh_CV.pdf" class="resume-btn mt-4 inline-block">Download Resume</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="skills" class="section mx-4">
+        <h2 class="text-3xl font-bold mb-4">Skills</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <div class="skill-card"><p class="text-base font-bold">Pure Mathematics</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 95%"></div></div><span class="tooltip">Advanced mathematical modeling</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Economics</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 90%"></div></div><span class="tooltip">Economic analysis and forecasting</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Web Development (HTML, CSS, JS)</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 85%"></div></div><span class="tooltip">Building responsive websites</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Python Programming</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 90%"></div></div><span class="tooltip">Data analysis and automation</span></div>
+            <div class="skill-card"><p class="text-base font-bold">SQL Data Analysis</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 88%"></div></div><span class="tooltip">Database management and querying</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Networking (CCNA 1 & 2)</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 92%"></div></div><span class="tooltip">Network configuration and troubleshooting</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Cybersecurity Systems</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 85%"></div></div><span class="tooltip">Securing digital infrastructure</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Environmental Impact Assessment</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 80%"></div></div><span class="tooltip">Sustainability and compliance</span></div>
+            <div class="skill-card"><p class="text-base font-bold">German Language (B1)</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 75%"></div></div><span class="tooltip">Intermediate communication skills</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Chess Playing</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 80%"></div></div><span class="tooltip">Strategic thinking and planning</span></div>
+            <div class="skill-card"><p class="text-base font-bold">APEX Programming</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 85%"></div></div><span class="tooltip">Enterprise application development</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Pascal Programming</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 80%"></div></div><span class="tooltip">Structured programming expertise</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Sales & Marketing</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 85%"></div></div><span class="tooltip">Client engagement and strategy</span></div>
+            <div class="skill-card"><p class="text-base font-bold">Project Management</p><div class="bg-gray-700 h-2 rounded"><div class="progress-bar" style="width: 80%"></div></div><span class="tooltip">Leading and delivering projects</span></div>
+        </div>
+        <canvas id="skillsChart" width="300" height="300" class="mx-auto"></canvas>
+    </section>
+
+    <section id="certifications" class="section mx-4">
+        <h2 class="text-3xl font-bold mb-4">Certifications</h2>
+        <div class="carousel">
+            <div class="carousel-inner">
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">SPSS - Chuka University (KEPRA)</h3><p class="text-sm">Statistical analysis for data-driven insights (2021).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Stata - Chuka University (KEPRA)</h3><p class="text-sm">Econometric modeling proficiency (2021).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Environmental Impact Assessment - University of Eldoret</h3><p class="text-sm">Sustainability and compliance (2024).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Environmental Assessment & Project Management - University of Eldoret</h3><p class="text-sm">Project planning and environmental management (2024).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Introduction to Data Science</h3><p class="text-sm">Data analysis techniques (2024).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Cisco Ethical Hacker</h3><p class="text-sm">Cybersecurity expertise (2025).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">CCNA 1 & 2 - Kenyatta University Cisco Academy</h3><p class="text-sm">Networking fundamentals and configurations (2024-2025).</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Huawei ICT</h3><p class="text-sm">Advanced ICT skills.</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">A1 & A2 German Language</h3><p class="text-sm">Basic German proficiency.</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Executive Online Diploma in Data Analytics</h3><p class="text-sm">Advanced data analytics skills.</p></div>
+                <div class="carousel-item"><h3 class="text-lg font-bold text-gold">Project Management (NEMA)</h3><p class="text-sm">Environmental project management (2024).</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="projects" class="section mx-4">
+        <h2 class="text-3xl font-bold mb-4">Projects</h2>
+        <div class="flex space-x-2 mb-4">
+            <button class="filter-btn text-gold text-sm" data-filter="all">All</button>
+            <button class="filter-btn text-gold text-sm" data-filter="app">Apps</button>
+            <button class="filter-btn text-gold text-sm" data-filter="web">Web</button>
+            <button class="filter-btn text-gold text-sm" data-filter="data">Data</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 project-container">
+            <div class="project-card" data-category="app" onclick="openLightbox('EatSmart Snap', 'App for scanning food menus for real-time nutritional insights, built with AI and mobile technologies.')"><h3 class="text-lg font-bold text-gold">EatSmart Snap</h3><p class="text-sm">App for nutritional insights.</p></div>
+            <div class="project-card" data-category="app" onclick="openLightbox('Apotek Pharmacy App', 'AI-driven app for managing pharmacy inventory and prescriptions, streamlining healthcare operations.')"><h3 class="text-lg font-bold text-gold">Apotek Pharmacy App</h3><p class="text-sm">AI-driven pharmacy management.</p></div>
+            <div class="project-card" data-category="data" onclick="openLightbox('Bank Cheque System', 'Secure Excel-based system for efficient cheque processing, ensuring accuracy and reliability.')"><h3 class="text-lg font-bold text-gold">Bank Cheque System</h3><p class="text-sm">Excel-based cheque processing.</p></div>
+            <div class="project-card" data-category="web" onclick="openLightbox('Winny Rono’s Merchandise Store', 'E-commerce platform for seamless product browsing and management, built with modern web technologies.')"><h3 class="text-lg font-bold text-gold">Winny Rono’s Merchandise Store</h3><p class="text-sm">E-commerce platform.</p></div>
+            <div class="project-card" data-category="data" onclick="openLightbox('Market Analysis Dashboard', 'SQL-based dashboard for real-time economic data visualization, aiding business decisions.')"><h3 class="text-lg font-bold text-gold">Market Analysis Dashboard</h3><p class="text-sm">SQL-based data visualization.</p></div>
+        </div>
+    </section>
+
+    <section id="timeline" class="section mx-4">
+        <h2 class="text-3xl font-bold mb-4">My Journey</h2>
+        <div class="space-y-4">
+            <div class="timeline-item"><h3 class="text-lg font-bold text-gold">BA in Mathematics & Economics - Chuka University</h3><p class="text-sm">Major in Pure Mathematics, Statistical Mathematics, Economics.</p></div>
+            <div class="timeline-item"><h3 class="text-lg font-bold text-gold">Treasurer (Volunteer) - Young Life Association, Chuka University</h3><p class="text-sm">Managed finances and led budgeting for events (2019-2024).</p></div>
+            <div class="timeline-item"><h3 class="text-lg font-bold text-gold">Attachment at Kenya Film Classification Board</h3><p class="text-sm">Gained IT operations and data management experience.</p></div>
+            <div class="timeline-item"><h3 class="text-lg font-bold text-gold">Founded APC TECH LTD - June 30, 2025</h3><p class="text-sm">Launched tech company in Nairobi for innovative solutions.</p></div>
+        </div>
+    </section>
+
+    <section id="achievements" class="section mx-4">
+        <h2 class="text-3xl font-bold mb-4">Achievements</h2>
+        <ul class="list-disc list-inside text-base">
+            <li>Ranked highly in programming competitions, showcasing coding proficiency.</li>
+            <li>Recognized as an Associate Expert in NEMA training for Environmental Impact Assessment.</li>
+            <li>Led budgeting and enhanced organizational efficiency as Treasurer at Young Life Association.</li>
+        </ul>
+    </section>
+
+    <section id="contact" class="section mx-4 text-center">
+        <h2 class="text-3xl font-bold mb-4">Contact</h2>
+        <p class="text-base">Email: <a href="mailto:alwynnthohh@gmail.com" class="text-gold hover:underline">alwynnthohh@gmail.com</a></p>
+        <p class="text-base">Phone: <a href="tel:+254700523627" class="text-gold hover:underline">+254 700 523 627</a></p>
+        <p class="text-base">LinkedIn: <a href="https://linkedin.com/in/alwynn-thoh" class="text-gold hover:underline">linkedin.com/in/alwynn-thoh</a></p>
+        <p class="text-base">GitHub: <a href="https://github.com/Thor-8-bot" class="text-gold hover:underline">github.com/Thor-8-bot</a></p>
+        <p class="text-base mt-4">Hobbies: Basketball, Chess</p>
+        <p class="text-base mt-2">Partner with <span class="font-bold">APC TECH LTD</span> for innovative tech solutions!</p>
+    </section>
+
+    <footer class="text-center py-6 text-base">
+        <p>© 2025 Alwynn Thoh | <span class="font-bold">APC TECH LTD</span>. Innovate. Inspire.</p>
+    </footer>
+
+    <div id="contactModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h3 class="text-xl font-bold mb-4">Get in Touch</h3>
+            <p class="text-base">Reach out to discuss collaborations or opportunities:</p>
+            <p class="text-base mt-2">Email: <a href="mailto:alwynnthohh@gmail.com" class="text-gold">alwynnthohh@gmail.com</a></p>
+            <p class="text-base">Phone: <a href="tel:+254700523627" class="text-gold">+254 700 523 627</a></p>
+            <p class="text-base">LinkedIn: <a href="https://linkedin.com/in/alwynn-thoh" class="text-gold">linkedin.com/in/alwynn-thoh</a></p>
+        </div>
+    </div>
+
+    <div id="projectLightbox" class="project-lightbox">
+        <div class="lightbox-content">
+            <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+            <h3 id="lightboxTitle" class="text-xl font-bold mb-4"></h3>
+            <p id="lightboxDescription" class="text-base"></p>
+        </div>
+    </div>
+
+    <script>
+        // Project filter
+        const filterButtons = document.querySelectorAll('.filter-btn');
+        const projectCards = document.querySelectorAll('.project-card');
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const filter = button.getAttribute('data-filter');
+                projectCards.forEach(card => {
+                    card.style.display = filter === 'all' || card.getAttribute('data-category') === filter ? 'block' : 'none';
+                });
+            });
+        });
+
+        // Certifications carousel
+        const carouselInner = document.querySelector('.carousel-inner');
+        const carouselItems = document.querySelectorAll('.carousel-item');
+        let currentIndex = 0;
+        function moveCarousel() {
+            currentIndex = (currentIndex + 1) % carouselItems.length;
+            carouselInner.style.transform = `translateX(-${currentIndex * 100}%)`;
+        }
+        setInterval(moveCarousel, 3000);
+
+        // Contact modal
+        function openModal() {
+            document.getElementById('contactModal').style.display = 'flex';
+        }
+        function closeModal() {
+            document.getElementById('contactModal').style.display = 'none';
+        }
+
+        // Project lightbox
+        function openLightbox(title, description) {
+            document.getElementById('lightboxTitle').textContent = title;
+            document.getElementById('lightboxDescription').textContent = description;
+            document.getElementById('projectLightbox').style.display = 'flex';
+        }
+        function closeLightbox() {
+            document.getElementById('projectLightbox').style.display = 'none';
+        }
+
+        // Skills pie chart
+        const ctx = document.getElementById('skillsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Mathematics', 'Economics', 'Web Development', 'Python', 'SQL', 'Networking', 'Cybersecurity', 'EIA', 'German (B1)', 'Chess'],
+                datasets: [{
+                    data: [95, 90, 85, 90, 88, 92, 85, 80, 75, 80],
+                    backgroundColor: ['#d4af37', '#b8972e', '#a68b27', '#957f22', '#84731d', '#736718', '#625b13', '#514f0e', '#404309', '#2f3704']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#e2e8f0', font: { size: 12 } } }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
